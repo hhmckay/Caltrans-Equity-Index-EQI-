@@ -9,9 +9,9 @@ SHN = "USDOT_AADT_07222022"
 blocks = "blocks20"
 
 # Define file paths and directory
-arcpy.env.workspace = "C:/Users/S152973/Downloads/AADT/Data.gdb"
-myGDB = "C:/Users/S152973/Downloads/AADT/Data.gdb"
-out_folder = "C:/Users/S152973/Downloads/AADT"
+arcpy.env.workspace = "C:/Users/Username/Downloads/AADT/Data.gdb"
+myGDB = "C:/Users/Username/Downloads/AADT/Data.gdb"
+out_folder = "C:/Users/Username/Downloads/AADT"
 
 # Overwrites existing output if name is the same
 arcpy.env.overwriteOutput = True
