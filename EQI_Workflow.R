@@ -1,4 +1,4 @@
-### EQI ###
+### EQI 1.0 ###
 
 # Load libraries
 library(tidycensus)
@@ -6,10 +6,6 @@ library(tigris)
 library(dplyr)
 library(mapview)
 library(sf)
-
-# Set Census API key
-census_api_key("YourCensusAPIKey", install = TRUE, overwrite = TRUE)
-readRenviron("~/.Renviron")
 
 blocks <- blocks(state = 06, year = 2020)
 
@@ -23,12 +19,12 @@ eqi_blocks <- blocks %>%
 ### DEMOGRAPHIC OVERLAY ###
 
 # Set global parameters
-year = 2020
+year = 2021
 state = 06
 geography = "block group"
 product = "acs5"
 
-setwd("C:/Users/YourUsername/OneDrive - California Department of Transportation/Documents/Sustainability_Data_Local/EQI_Data/Data")
+setwd("")
 
 ### Income data ###
 # State median HH income
@@ -65,7 +61,7 @@ hh_size <- get_acs(
   select(GEOID, rounded_hh_size)
 
 # Read in income limits data
-income_limits <- read.csv("2020_IncomeLimits.csv")
+income_limits <- read.csv("2021_IncomeLimits.csv")
 
 # Income calcs
 income_df <- merge(hh_income,
@@ -106,43 +102,6 @@ income_df <- income_df %>%
   select(GEOID, estimate, rounded_hh_size, local_low_income_threshold, localized_income_screen, state_income_screen, income_screen) %>%
   rename("median_hh_income" = "estimate")
 
-###
-
-### Race/ethnicity data ###
-
-# Block decennial census redistricting data
-redistricting_data <- read.csv("state_06_PL94_2020_Legacy_BLOCK_P12345H1_DOJ.csv") %>%
-  mutate(GEOID20 = substr(GEOID, 10, 24)) %>%
-  mutate(block_pct_non_white = (1 - (NH_Wht / Population.P1))) %>%
-  select(GEOID20, block_pct_non_white)
-redistricting_data$block_pct_non_white[redistricting_data$block_pct_non_white == "NaN"] <- NA
-
-# Block group ACS race/ethnicity data
-acs_white <- get_acs(
-  geography = geography,
-  variables = "B03002_003",
-  year = year,
-  state = state,
-  geometry = FALSE) %>%
-  select(GEOID, estimate) %>%
-  rename("white_population" = "estimate")
-
-acs_total <- get_acs(
-  geography = geography,
-  variables = "B03002_001",
-  year = year,
-  state = state,
-  geometry = FALSE) %>%
-  select(GEOID, estimate) %>%
-  rename("total_population" = "estimate")
-
-acs_race_ethnicity <- merge(acs_white,
-                            acs_total,
-                            by = "GEOID",
-                            all = T) %>%
-  mutate(bg_pct_non_white = 1 - (white_population / total_population)) %>%
-  select(GEOID, bg_pct_non_white)
-
 ### Assemble the demographic overlay ###
 demographic_overlay <- merge(eqi_blocks,
                              income_df,
@@ -150,21 +109,10 @@ demographic_overlay <- merge(eqi_blocks,
                              by.y = "GEOID",
                              all.x = T)
 
-demographic_overlay <- merge(demographic_overlay,
-                             redistricting_data,
-                             by = "GEOID20",
-                             all.x = T)
-
-demographic_overlay <- merge(demographic_overlay,
-                             acs_race_ethnicity,
-                             by.x = "bg_id",
-                             by.y = "GEOID",
-                             all.x = T)
-
 
 ### Traffic Exposure ###
 
-setwd("C:/Users/YourUsername/OneDrive - California Department of Transportation/Documents/Sustainability_Data_Local/EQI_Data/Data/TIMS_CSVS")
+setwd("")
 files = dir()
 
 # Function to filter csv by category and only keep relevant variables
@@ -182,35 +130,22 @@ for (i in files) {
   print(i)
 }
 
-write.csv(out, "C:/Users/YourUsername/OneDrive - California Department of Transportation/Documents/Sustainability_Data_Local/EQI_Data/Data/TIMS_RAW.csv", na = "")
+write.csv(out, "")
 
 rm(data_temp, out, i, files, combineFiles)
 
 # Read in safety data cleaned in ArcGIS
-setwd("C:/Users/YourUsername/OneDrive - California Department of Transportation/Documents/Sustainability_Data_Local/EQI_Data/Data")
+setwd("")
 
-safety_data_all <- read.csv("Crash_Score_ALL.csv") %>%
-  select(GEOID20, SUM_accident_score) %>%
-  rename("crash_score_all" = "SUM_accident_score") %>%
-  filter(crash_score_all > 0)
-safety_data_all$GEOID20 <- as.character(paste0("0", safety_data_all$GEOID20))
-safety_data_all <- merge(safety_data_all,
-                         eqi_blocks,
-                         by = "GEOID20",
-                         all.x = T) %>%
-  mutate(crash_density_all = crash_score_all / (ALAND20 * 3.86102e-7)) %>%
-  mutate(crash_percentile_all = percent_rank(crash_density_all)) %>%
-  select(GEOID20, crash_score_all, crash_density_all, crash_percentile_all)
-
-safety_data_keep <- read.csv("Crash_Score_KEEP.csv") %>%
-  select(GEOID20, SUM_accident_score) %>%
-  rename("crash_score_local" = "SUM_accident_score") %>%
+safety_data_keep <- read.csv("") %>%
+  select(GEOID20, SUM_Weight) %>%
+  rename("crash_score_local" = "SUM_Weight") %>%
   filter(crash_score_local > 0)
 safety_data_keep$GEOID20 <- as.character(paste0("0", safety_data_keep$GEOID20))
 safety_data_keep <- merge(safety_data_keep,
-                         eqi_blocks,
-                         by = "GEOID20",
-                         all.x = T) %>%
+                          eqi_blocks,
+                          by = "GEOID20",
+                          all.x = T) %>%
   mutate(crash_density_local = crash_score_local / (ALAND20 * 3.86102e-7)) %>%
   mutate(crash_percentile_local = percent_rank(crash_density_local)) %>%
   select(GEOID20, crash_score_local, crash_density_local, crash_percentile_local)
@@ -220,21 +155,16 @@ demographic_overlay_temp <- demographic_overlay %>%
   select(GEOID20, ALAND20)
 
 crash_indicator <- merge(demographic_overlay_temp,
-                         safety_data_all,
-                         by = "GEOID20",
-                         all.x = T)
-
-crash_indicator <- merge(crash_indicator,
                          safety_data_keep,
                          by = "GEOID20",
                          all.x = T)
 
 crash_indicator <- crash_indicator %>%
-  select(GEOID20, crash_score_all, crash_score_local, crash_density_all, crash_density_local, crash_percentile_all, crash_percentile_local)
+  select(GEOID20, crash_score_local, crash_density_local, crash_percentile_local)
 
 
 # Read in AADT exposure data from ArcGIS
-aadt_raw <- read.csv("AADT_12062022.csv")
+aadt_raw <- read.csv("")
 aadt_raw$GEOID <- as.character(paste0("0", aadt_raw$GEOID))
 aadt_raw[is.na(aadt_raw)] <- 0
 
@@ -282,61 +212,54 @@ traffic_exposure_indicator <- merge(demographic_overlay_temp,
   select(GEOID20, weighted_aadt_score, traffic_proximity_and_volume_percentile)
 
 ### Access to Destinations Screen
-setwd("C:/Users/YourUsername/OneDrive - California Department of Transportation/Documents/Sustainability_Data_Local/EQI_Data/Data")
-# Auto work
-access_auto_work <- read.csv("AUTO_WORK_45min.csv")
-access_auto_work$GEOID20 <- as.character(paste0("0", access_auto_work$GEOID20))
-access_auto_work <- access_auto_work %>%
-  rename("access_auto_work" = "MEAN") %>%
-  select(GEOID20, access_auto_work)
+setwd("")
 
-# Multimodal work
-access_multimodal_work <- read.csv("MULTIMODAL_WORK_45min.csv")
-access_multimodal_work$GEOID20 <- as.character(paste0("0", access_multimodal_work$GEOID20))
-access_multimodal_work <- access_multimodal_work %>%
-  rename("access_multimodal_work" = "MEAN") %>%
-  select(GEOID20, access_multimodal_work)
+# PED RATIO
+ped_ratio <- read.csv("")
+ped_ratio$GEOID20 <- as.character(paste0("0", ped_ratio$GEOID20))
+ped_ratio <- ped_ratio %>%
+  rename("PED_RATIO" = "MEAN") %>%
+  select(GEOID20, PED_RATIO)
 
-# Auto Non-Work
-access_auto_nonwork <- read.csv("AUTO_POI_45min.csv")
-access_auto_nonwork$GEOID20 <- as.character(paste0("0", access_auto_nonwork$GEOID20))
-access_auto_nonwork <- access_auto_nonwork %>%
-  rename("access_auto_nonwork" = "MEAN") %>%
-  select(GEOID20, access_auto_nonwork)
+# BIKE RATIO
+bike_ratio <- read.csv("")
+bike_ratio$GEOID20 <- as.character(paste0("0", bike_ratio$GEOID20))
+bike_ratio <- bike_ratio %>%
+  rename("BIKE_RATIO" = "MEAN") %>%
+  select(GEOID20, BIKE_RATIO)
 
-# Multimodal Non-Work
-access_multimodal_nonwork <- read.csv("MULTIMODAL_POI_45min.csv")
-access_multimodal_nonwork$GEOID20 <- as.character(paste0("0", access_multimodal_nonwork$GEOID20))
-access_multimodal_nonwork <- access_multimodal_nonwork %>%
-  rename("access_multimodal_nonwork" = "MEAN") %>%
-  select(GEOID20, access_multimodal_nonwork)
+# TRANSIT RATIO
+transit_ratio_jobs <- read.csv("")
+transit_ratio_jobs$GEOID20 <- as.character(paste0("0", transit_ratio_jobs$GEOID20))
+transit_ratio_jobs <- transit_ratio_jobs %>%
+  rename("TRANSIT_RATIO_JOBS" = "MEAN") %>%
+  select(GEOID20, TRANSIT_RATIO_JOBS)
 
-# Work ratio
-access_work <- merge(access_auto_work,
-                     access_multimodal_work,
-                     by = "GEOID20",
-                     all = T) %>%
-  mutate(access_ratio_work = access_multimodal_work / access_auto_work)
+transit_ratio_pois <- read.csv("")
+transit_ratio_pois$GEOID20 <- as.character(paste0("0", transit_ratio_pois$GEOID20))
+transit_ratio_pois <- transit_ratio_pois %>%
+  rename("TRANSIT_RATIO_POIs" = "MEAN") %>%
+  select(GEOID20, TRANSIT_RATIO_POIs)
 
-access_work$access_ratio_work[access_work$access_auto_work == 0] <- 0
-access_work$access_ratio_work[access_work$access_multimodal_work > access_work$access_auto_work] <- 0
-access_work[is.na(access_work)] <- 0
 
-# Non_Work ratio
-access_nonwork <- merge(access_auto_nonwork,
-                     access_multimodal_nonwork,
-                     by = "GEOID20",
-                     all = T) %>%
-  mutate(access_ratio_nonwork = access_multimodal_nonwork / access_auto_nonwork)
-
-access_nonwork$access_ratio_nonwork[access_nonwork$access_auto_nonwork == 0] <- 0
-access_nonwork$access_ratio_nonwork[access_nonwork$access_multimodal_nonwork > access_nonwork$access_auto_nonwork] <- 0
-access_nonwork[is.na(access_nonwork)] <- 0
-
-access <- merge(access_work,
-                access_nonwork,
+blocks_access <- eqi_blocks
+access <- merge(blocks_access,
+                ped_ratio,
                 by = "GEOID20",
-                all = T)
+                all.X = T)
+access <- merge(access,
+                bike_ratio,
+                by = "GEOID20",
+                all.X = T)
+access <- merge(access,
+                transit_ratio_jobs,
+                by = "GEOID20",
+                all.X = T)
+
+access <- merge(access,
+                transit_ratio_pois,
+                by = "GEOID20",
+                all.X = T)
 
 ### Final EQI Assembly
 EQI <- blocks %>%
@@ -364,10 +287,13 @@ EQI <- merge(EQI,
              by = "GEOID20",
              all.x = T)
 
-write.csv(EQI, "C:/Users/YourUsername/OneDrive - California Department of Transportation/Documents/Sustainability_Data_Local/EQI_Data/Outputs/EQI_12142022.csv", na = "")
+EQI$PED_RATIO[is.na(EQI$PED_RATIO)] <- 0
+EQI$BIKE_RATIO[is.na(EQI$BIKE_RATIO)] <- 0
+EQI$TRANSIT_RATIO_JOBS[is.na(EQI$TRANSIT_RATIO_JOBS)] <- 0
+EQI$TRANSIT_RATIO_POIs[is.na(EQI$TRANSIT_RATIO_POIs)] <- 0
 
+EQI <- EQI %>%
+  select(GEOID20, median_hh_income, rounded_hh_size, local_low_income_threshold, localized_income_screen, state_income_screen,income_screen, crash_score_local, crash_density_local,
+         crash_percentile_local, weighted_aadt_score, traffic_proximity_and_volume_percentile, PED_RATIO, BIKE_RATIO, TRANSIT_RATIO_JOBS, TRANSIT_RATIO_POIs)
 
-
-
-
-                          
+write.csv(EQI, "", na = "")                       
